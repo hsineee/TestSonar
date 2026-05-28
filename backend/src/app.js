@@ -22,6 +22,9 @@ const { globalizationMiddleware } = require('./middleware/globalizationMiddlewar
 const { SUPPORTED_LOCALES } = require('./config/globalization');
 
 const app = express();
+app.disable('x-powered-by');
+
+const corsOrigins = (process.env.CORS_ORIGINS || '*')
 
 const corsOrigins = (process.env.CORS_ORIGINS || '*')
   .split(',')
