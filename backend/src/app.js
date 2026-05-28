@@ -22,12 +22,28 @@ const { globalizationMiddleware } = require('./middleware/globalizationMiddlewar
 const { SUPPORTED_LOCALES } = require('./config/globalization');
 
 const app = express();
+
 app.disable('x-powered-by');
 
-const corsOrigins = (process.env.CORS_ORIGINS || '*')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const corsOrigins = new Set(
+  (process.env.CORS_ORIGINS || '*')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+
+const allowAllCorsOrigins = corsOrigins.has('*');
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowAllCorsOrigins || corsOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
+  exposedHeaders: ['X-Resolved-Locale', 'X-Resolved-Timezone'],
+}));
 
 app.use(cors({
   origin(origin, callback) {
