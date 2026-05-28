@@ -1,0 +1,66 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: perf_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-perfuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-perfpass}
+      POSTGRES_DB: ${POSTGRES_DB:-perfdb}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-perfuser} -d ${POSTGRES_DB:-perfdb}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: perf_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-perfuser}:${POSTGRES_PASSWORD:-perfpass}@db:5432/${POSTGRES_DB:-perfdb}
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey_change_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-development}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-zh-TW}
+      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-TW,en-US,ja-JP}
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Taipei}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: perf_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_DEFAULT_LOCALE: ${VITE_DEFAULT_LOCALE:-zh-TW}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3001}
+      VITE_API_TIMEOUT_MS: ${VITE_API_TIMEOUT_MS:-8000}
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  pgdata:
