@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  HR
+}
+
+enum GoalStatus {
+  DRAFT
+  ACTIVE
+  REJECTED
+  COMPLETED
+  DISPUTED
+  DISPUTE_RESOLVED
+}
+
+enum DisputeStatus {
+  PENDING
+  RESOLVED
+}
+
+enum ReviewStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+model Department {
+  id    String @id @default(uuid())
+  name  String @unique
+  users User[]
+
+  @@map("departments")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  managerId    String?
+  level        String?
+  isActive     Boolean  @default(true)
+  departmentId String?
+
+  mfaEnabled   Boolean  @default(false)
+  mfaSecret    String?
+
+  manager    User?       @relation("ManagerReports", fields: [managerId], references: [id])
+  reports    User[]      @relation("ManagerReports")
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  goals            Goal[]     @relation("UserGoals")
+  kpis             Kpi[]      @relation("KpiCreator")
+  auditLogs        AuditLog[] @relation("AuditActor")
+  disputes         Dispute[]  @relation("EmployeeDisputes")
+  resolvedDisputes Dispute[]  @relation("ResolverDisputes")
+
+  createdTemplates ReviewTemplate[]    @relation("TemplateCreator")
+  reviewsReceived  PerformanceReview[] @relation("UserReviewsReceived")
+  reviewsAuthored  PerformanceReview[] @relation("UserReviewsAuthored")
+  standardsSet     LevelStandard[]     @relation("StandardSetter")
+  dailyOutputLogs DailyOutputLog[]    @relation("UserDailyOutputLogs")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Kpi {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  quarter     String
+
+  createdById String
+  createdBy   User   @relation("KpiCreator", fields: [createdById], references: [id])
+
+  goals Goal[] @relation("GoalKpi")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kpis")
+}
+
+model Goal {
+  id           String     @id @default(uuid())
+  title        String
+  specific     String
+  measurable   String
+  achievable   String
+  relevant     String
+  dueDate      DateTime
+  progress     Int        @default(0)
+  status       GoalStatus @default(ACTIVE)
+  rejectReason String?
+  userId       String
+  user         User       @relation("UserGoals", fields: [userId], references: [id])
+
+  kpiId String
+  kpi   Kpi    @relation("GoalKpi", fields: [kpiId], references: [id])
+
+  disputes  Dispute[]
+  feedbacks FeedbackEntry[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("goals")
+}
+
+model Dispute {
+  id           String        @id @default(uuid())
+  goalId       String
+  goal         Goal          @relation(fields: [goalId], references: [id])
+  employeeId   String
+  employee     User          @relation("EmployeeDisputes", fields: [employeeId], references: [id])
+  reason       String
+  status       DisputeStatus @default(PENDING)
+  finalScore   Int?
+  resolvedById String?
+  resolvedBy   User?         @relation("ResolverDisputes", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
+  createdAt    DateTime      @default(now())
+
+  @@map("disputes")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  userId     String
+  actor      User     @relation("AuditActor", fields: [userId], references: [id])
+  targetId   String
+  targetType String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model ReviewTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  dimensions  Json
+  createdById String
+  createdBy   User     @relation("TemplateCreator", fields: [createdById], references: [id])
+  reviews     PerformanceReview[]
+  createdAt   DateTime @default(now())
+
+  @@map("review_templates")
+}
+
+model PerformanceReview {
+  id         String         @id @default(uuid())
+  userId     String
+  user       User           @relation("UserReviewsReceived", fields: [userId], references: [id])
+  reviewerId String
+  reviewer   User           @relation("UserReviewsAuthored", fields: [reviewerId], references: [id])
+  templateId String?
+  template   ReviewTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  status     ReviewStatus   @default(DRAFT)
+
+  finalGrade     String?    
+  overallComment String?    
+
+  feedbacks  FeedbackEntry[]
+
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@map("performance_reviews")
+}
+
+model FeedbackEntry {
+  id            String            @id @default(uuid())
+  reviewId      String
+  review        PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  goalId        String?
+  goal          Goal?             @relation(fields: [goalId], references: [id])
+  
+  dimensionName String
+  metricType    String
+  
+  quantScore    Float?
+  impression    Int?
+  
+  comment       String?
+  gapAnalysis   String?
+
+  @@map("feedback_entries")
+}
+
+model LevelStandard {
+  id            String   @id @default(uuid())
+  level         String
+  dimensionName String
+  targetValue   Float
+  
+  setById       String
+  setBy         User     @relation("StandardSetter", fields: [setById], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("level_standards")
+}
+
+model DailyOutputTag {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  unit        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  logs DailyOutputLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("daily_output_tags")
+}
+
+model DailyOutputLog {
+  id      String @id @default(uuid())
+  userId  String
+  user    User   @relation("UserDailyOutputLogs", fields: [userId], references: [id])
+
+  tagId String
+  tag   DailyOutputTag @relation(fields: [tagId], references: [id])
+
+  value   Float
+  logDate DateTime
+  note    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, logDate])
+  @@index([tagId])
+  @@map("daily_output_logs")
+}
+
+model PerformancePeriod {
+  id        String   @id @default(uuid())
+  quarter   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("performance_periods")
+}

@@ -1,0 +1,61 @@
+{
+  "name": "performance-system-backend",
+  "version": "1.0.0",
+  "description": "Performance Management System - Backend API",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "test": "jest --runInBand --forceExit",
+    "test:unit": "jest --testPathPattern=unit --runInBand --forceExit",
+    "test:integration": "jest --testPathPattern=integration --runInBand --forceExit",
+    "test:coverage": "jest --coverage --runInBand --forceExit",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force && node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "otplib": "^13.4.0",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.3",
+    "prisma": "^5.10.0",
+    "supertest": "^6.3.4"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^otplib$": "<rootDir>/src/__tests__/__mocks__/otplibMock.js",
+      "^@scure/base$": "<rootDir>/src/__tests__/__mocks__/otplibMock.js"
+    },
+    "collectCoverageFrom": [
+      "src/services/**/*.js",
+      "src/middleware/**/*.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  }
+}
