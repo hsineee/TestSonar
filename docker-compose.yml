@@ -29,7 +29,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-perfuser}:${POSTGRES_PASSWORD:-perfpass}@db:5432/${POSTGRES_DB:-perfdb}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-perfuser}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-perfdb}
       JWT_SECRET: ${JWT_SECRET:-supersecretkey_change_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       PORT: 3001
